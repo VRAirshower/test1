@@ -1,119 +1,215 @@
-<!DOCTYPE html>
-<html lang="en-us">
+<!doctype html>
+<html lang="ja">
   <head>
     <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity WebGL Player | Nagano</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#071824">
+    <title>Test01 | Nagano3D WebGL起動検証</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
+    <link rel="stylesheet" href="TemplateData/style.css?v=20260729-test01">
   </head>
   <body>
-    <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=960 height=600></canvas>
-      <div id="unity-loading-bar">
-        <div id="unity-logo"></div>
-        <div id="unity-progress-bar-empty">
-          <div id="unity-progress-bar-full"></div>
+    <main id="preload-page">
+      <div class="sky" aria-hidden="true">
+        <div class="cosmic-ray"></div>
+        <div class="array-grid"></div>
+      </div>
+
+      <div class="shell">
+        <header class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>Nagano3D</span>
+          <span class="test-badge">TEST 01</span>
+        </header>
+
+        <div class="preload-layout">
+          <section class="intro" aria-labelledby="tour-title">
+            <p class="eyebrow">TELESCOPE ARRAY / UTAH</p>
+            <h1 id="tour-title">宇宙線観測の現場を、<br>360°で巡る。</h1>
+            <p class="lead">
+              米国ユタ州の砂漠に広がる観測施設へ。地表検出器と大気蛍光望遠鏡を、
+              現地に立つような視点で見学できます。
+            </p>
+            <dl class="tour-points" aria-label="見学できる施設">
+              <div><dt>SD</dt><dd>地表検出器</dd></div>
+              <div><dt>FD</dt><dd>大気蛍光望遠鏡</dd></div>
+            </dl>
+          </section>
+
+          <section class="load-panel" aria-labelledby="load-status">
+            <p class="panel-label">PREPARING TEST TOUR</p>
+            <p id="load-status" class="load-status" aria-live="polite">
+              ページを準備しています
+            </p>
+            <div
+              id="load-progress"
+              class="progress-track"
+              role="progressbar"
+              aria-label="ツアーデータの読み込み"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            >
+              <span id="load-progress-fill" class="progress-fill"></span>
+            </div>
+            <div class="progress-meta">
+              <span id="load-detail">画面を表示したあと、データ取得を開始します。</span>
+              <span id="load-percent" aria-hidden="true">0%</span>
+            </div>
+            <button id="enter-tour" class="enter-button" type="button" disabled>
+              読み込み中 0%
+            </button>
+            <p class="cache-note">
+              案内ページを表示しながら、テスト版ツアーの準備を進めています。
+            </p>
+            <noscript><p class="noscript-message">JavaScriptを有効にしてください。</p></noscript>
+          </section>
         </div>
+
+        <footer class="preload-footer">
+          <span>NAGANO3D WEBGL TEST 01</span>
+          <span aria-hidden="true">39.3°N / 112.9°W</span>
+        </footer>
       </div>
-      <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-webgl-logo"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">Nagano</div>
+    </main>
+
+    <section id="unity-stage" aria-label="360°バーチャルツアー" aria-hidden="true" inert>
+      <div id="unity-container" class="unity-desktop">
+        <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
+        <div id="unity-warning" aria-live="polite"></div>
       </div>
-    </div>
+      <button id="unity-fullscreen-button" type="button" aria-label="全画面表示">
+        <span aria-hidden="true"></span>
+      </button>
+    </section>
+
     <script>
-      var container = document.querySelector("#unity-container");
-      var canvas = document.querySelector("#unity-canvas");
-      var loadingBar = document.querySelector("#unity-loading-bar");
-      var progressBarFull = document.querySelector("#unity-progress-bar-full");
-      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
-      var warningBanner = document.querySelector("#unity-warning");
+      const body = document.body;
+      const preloadPage = document.querySelector("#preload-page");
+      const unityStage = document.querySelector("#unity-stage");
+      const container = document.querySelector("#unity-container");
+      const canvas = document.querySelector("#unity-canvas");
+      const warningBanner = document.querySelector("#unity-warning");
+      const fullscreenButton = document.querySelector("#unity-fullscreen-button");
+      const loadStatus = document.querySelector("#load-status");
+      const loadDetail = document.querySelector("#load-detail");
+      const loadProgress = document.querySelector("#load-progress");
+      const progressFill = document.querySelector("#load-progress-fill");
+      const loadPercent = document.querySelector("#load-percent");
+      const enterButton = document.querySelector("#enter-tour");
 
-      // Shows a temporary message banner/ribbon for a few seconds, or
-      // a permanent error message on top of the canvas if type=='error'.
-      // If type=='warning', a yellow highlight color is used.
-      // Modify or remove this function to customize the visually presented
-      // way that non-critical warnings and error messages are presented to the
-      // user.
-      function unityShowBanner(msg, type) {
-        function updateBannerVisibility() {
-          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
-        }
-        var div = document.createElement('div');
-        div.innerHTML = msg;
-        warningBanner.appendChild(div);
-        if (type == 'error') div.style = 'background: red; padding: 10px;';
-        else {
-          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
-          setTimeout(function() {
-            warningBanner.removeChild(div);
-            updateBannerVisibility();
-          }, 5000);
-        }
-        updateBannerVisibility();
+      let unityInstance = null;
+      let loadStarted = false;
+      let loadStartedAt = 0;
+      let retryRequired = false;
+
+      function unityShowBanner(message, type) {
+        const item = document.createElement("div");
+        item.className = `unity-message unity-message-${type || "info"}`;
+        item.textContent = message;
+        warningBanner.appendChild(item);
+        if (type !== "error") window.setTimeout(() => item.remove(), 5000);
       }
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/BuildTest1Baseline.loader.js";
-      var config = {
-        dataUrl: buildUrl + "/BuildTest1Baseline.data",
-        frameworkUrl: buildUrl + "/BuildTest1Baseline.framework.js",
-        codeUrl: buildUrl + "/BuildTest1Baseline.wasm",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "Nagano",
-        productVersion: "0.1",
-        showBanner: unityShowBanner,
-      };
-
-      // By default Unity keeps WebGL canvas render target size matched with
-      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
-      // Set this to false if you want to decouple this synchronization from
-      // happening inside the engine, and you would instead like to size up
-      // the canvas DOM size and WebGL render target sizes yourself.
-      // config.matchWebGLToCanvasSize = false;
-
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
-
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        container.className = "unity-mobile";
-        canvas.className = "unity-mobile";
-
-        // To lower canvas resolution on mobile devices to gain some
-        // performance, uncomment the following line:
-        // config.devicePixelRatio = 1;
-
-        unityShowBanner('WebGL builds are not supported on mobile devices.');
-      } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
+      function updateProgress(progress) {
+        const normalized = Math.max(0, Math.min(1, Number(progress) || 0));
+        const percent = Math.round(normalized * 100);
+        progressFill.style.width = `${percent}%`;
+        loadProgress.setAttribute("aria-valuenow", String(percent));
+        loadPercent.textContent = `${percent}%`;
+        enterButton.textContent = `読み込み中 ${percent}%`;
       }
 
-      loadingBar.style.display = "block";
+      function showLoadFailure(message) {
+        console.error(message);
+        retryRequired = true;
+        loadStatus.textContent = "読み込みに失敗しました";
+        loadDetail.textContent = "通信環境を確認して、もう一度お試しください。";
+        enterButton.disabled = false;
+        enterButton.textContent = "再読み込み";
+        enterButton.classList.add("is-ready");
+      }
 
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = 100 * progress + "%";
-        }).then((unityInstance) => {
-          loadingBar.style.display = "none";
-          fullscreenButton.onclick = () => {
-            unityInstance.SetFullscreen(1);
-          };
-        }).catch((message) => {
-          alert(message);
+      function markTourReady(instance) {
+        const elapsedSeconds = (performance.now() - loadStartedAt) / 1000;
+        unityInstance = instance;
+        updateProgress(1);
+        loadStatus.textContent = "テスト版の準備ができました";
+        loadDetail.textContent =
+          `ツアーデータの読み込み開始から ${elapsedSeconds.toFixed(1)} 秒でした。`;
+        enterButton.disabled = false;
+        enterButton.textContent = "体験を始める";
+        enterButton.classList.add("is-ready");
+        body.classList.add("unity-ready");
+      }
+
+      function enterTour() {
+        if (retryRequired) {
+          window.location.reload();
+          return;
+        }
+        if (!unityInstance) return;
+
+        preloadPage.setAttribute("inert", "");
+        unityStage.setAttribute("aria-hidden", "false");
+        unityStage.removeAttribute("inert");
+        body.classList.add("tour-active");
+        window.setTimeout(() => {
+          preloadPage.setAttribute("aria-hidden", "true");
+          canvas.focus({ preventScroll: true });
+        }, 0);
+      }
+
+      function startUnityLoad() {
+        if (loadStarted) return;
+        loadStarted = true;
+        loadStartedAt = performance.now();
+        loadStatus.textContent = "ツアーデータを取得しています";
+        loadDetail.textContent = "案内を表示したまま、バックグラウンドで読み込みます。";
+
+        const buildUrl = "Build";
+        const loaderUrl = buildUrl + "/BuildTest1Baseline.loader.js";
+        const config = {
+          dataUrl: buildUrl + "/BuildTest1Baseline.data",
+          frameworkUrl: buildUrl + "/BuildTest1Baseline.framework.js",
+          codeUrl: buildUrl + "/BuildTest1Baseline.wasm",
+          streamingAssetsUrl: "StreamingAssets",
+          companyName: "DefaultCompany",
+          productName: "Nagano",
+          productVersion: "0.1",
+          showBanner: unityShowBanner,
+        };
+
+        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+          container.className = "unity-mobile";
+          canvas.className = "unity-mobile";
+          unityShowBanner("モバイル端末では動作が不安定になる場合があります。", "warning");
+        }
+
+        const loaderScript = document.createElement("script");
+        loaderScript.src = loaderUrl;
+        loaderScript.async = true;
+        loaderScript.onload = () => {
+          createUnityInstance(canvas, config, updateProgress)
+            .then(markTourReady)
+            .catch(showLoadFailure);
+        };
+        loaderScript.onerror = () => showLoadFailure("Unity loader could not be downloaded.");
+        document.body.appendChild(loaderScript);
+      }
+
+      enterButton.addEventListener("click", enterTour);
+      fullscreenButton.addEventListener("click", () => {
+        if (unityInstance) unityInstance.SetFullscreen(1);
+      });
+
+      function beginAfterFirstPaint() {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(startUnityLoad);
         });
-      };
-      document.body.appendChild(script);
+      }
+
+      beginAfterFirstPaint();
     </script>
   </body>
 </html>
